@@ -1,32 +1,24 @@
-﻿function virusReportReader($HtmlContent) {
+﻿function virusReportReader($HtmlString) {
     $virus = New-Object System.Collections.Generic.List[PSCustomObject]
-    if ($HtmlContent.Contains("No harmful items found") -or $HtmlContent.Contains("未發現有害項目")) {
+    if ($HtmlString.Contains("No harmful items found") -or $HtmlString.Contains("未發現有害項目")) {
         # 沒中毒
         return $virus
     }else{
         # 中毒
-        # 取出ClassName=infected的html string
-        $html = new-object -ComObject HTMLFile                                                      # 建立com物件處理HTML
-        $html.write([System.Text.Encoding]::Unicode.GetBytes($HtmlContent))                         # 寫入html文字
-        $Htmlinfected = $html.getElementsByClassName('infected')|ForEach-Object{$_.innerHTML}       # 取出string
 
-        # 取出中毒類別
-        $patternCategory = '<A href="[^"]+">([^<]+)</A>'
-        $categories = [regex]::Matches($Htmlinfected, $patternCategory) | ForEach-Object {
-            $_.Groups[1].Value.Trim()
-        }
+        # 使用 Select-XML 查詢 HTML 內容
+        $xml = [xml]$HtmlString  # 將 HTML 轉換為XML
 
-        # 取出中毒檔案路徑
-        $patternPath = '<LI>([^<]+)</LI>'
-        $paths = [regex]::Matches($Htmlinfected, $patternPath) | ForEach-Object {
-            $_.Groups[1].Value.Trim()
-        }
+        # 使用XPath取出病毒名稱、路徑
+        $vireNames = $xml | Select-Xml "//ul[@class='list_infected']/li/a"
+        $virePaths = $xml | Select-Xml "//ul[@class='list_infected']/li/ul/li"
 
-        for ($i = 0; $i -lt $categories.Count; $i++) {
+        # 串成PSCustomObject
+        for ($i = 0; $i -lt $vireNames.Count; $i++) {
             $virus.Add(
                 [PSCustomObject]@{
-                    "type" = $categories[$i]
-                    "path" = $paths[$i]
+                    "type" = $vireNames[$i]
+                    "path" = $virePaths[$i]
                 }
             )
         }
@@ -34,7 +26,7 @@
     }
 }
 
-# $HtmlContent = @"
+# $HtmlString = @"
 # <html lang="en">
 #     <head>
 #         <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
@@ -93,6 +85,12 @@
 #                             <li>C:\Users\Administrator\Desktop\eicar\eicar4.com</li>
 #                         </ul>
 #                     </li>
+#                     <li>
+#                         <a href="https://ws.fsapi.com/cgi-bin/AT-Vdescssearch.cgi?search=TR/Agent.52224.CA">TR/Agent.52224.CA</a>
+#                         <ul>
+#                             <li>\\10.10.24.21\c$\Users\Administrator\Desktop\tmp\SmartSniff v1.35 (封包擷取程式)\smsniff.exe</li>
+#                         </ul>
+#                     </li>
 #                 </ul>
 #             </div>
 #         </div>
@@ -119,4 +117,4 @@
 #     </body>
 # </html>
 # "@
-# scanReportProcesss $HtmlContent
+# virusReportReader $HtmlString
