@@ -51,9 +51,17 @@ foreach ($IP in $IPRangeArray) {
     foreach ($credential in $credentials) {
         try {
             # 遠端作業
-            $PhysicalDiskUNCs = Invoke-Command -ComputerName $IP -ScriptBlock {
-                Get-WmiObject -Class Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {"\\$($using:IP)\$($_.DeviceID.replace(':','').ToLower())$"}
-            } -credential $credential -ErrorAction Stop
+            $PhysicalDiskUNCs = (
+                Invoke-Command -ComputerName $IP -ScriptBlock {
+                    Get-Disk | Where-Object {
+                        $_.BusType -notin "iSCSI"
+                    }| ForEach-Object {
+                    $_ | Get-Partition | Where-Object {
+                            -not $_.DriveLetter -eq ""
+                        }
+                    } | Select-Object DriveLetter,Size
+                } -credential $credential -ErrorAction Stop
+            ) | ForEach-Object {"\\$($IP)\$($_.DriveLetter.ToLower())$"}
 
             foreach ($DiskUnc in $PhysicalDiskUNCs) {
                 $data = [PSCustomObject]@{
