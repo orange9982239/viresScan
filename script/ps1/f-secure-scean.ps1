@@ -1,6 +1,7 @@
 ﻿Import-Module C:\script\ps1\functions\saveCsv.ps1
 Import-Module C:\script\ps1\functions\alert.ps1
 Import-Module C:\script\ps1\functions\virusReportReader.ps1
+Import-Module C:\script\ps1\functions\createHtmlReport.ps1
 
 $outputFolderPath = "C:\script\log\f-secure-scean_log\$((Get-Date).ToString("yyyyMMdd"))"    # 放csv簡述報告及所有HTML報告dir
 $credentials = (Get-Content -Raw -Path "C:\script\ps1\config\credentialsEncripted.json" | ConvertFrom-Json) | ForEach-Object {
@@ -25,7 +26,6 @@ $IPRangeArray = $(
 
 # add env
 $env:Path += ';C:\Program Files (x86)\F-Secure\Server Security\'
-
 
 # 全網段掃描結果 networkScanReport.csv
 # 硬碟清單 diskScanReport.csv
@@ -125,13 +125,11 @@ foreach ($IP in $IPRangeArray) {
     # }
 }
 
-
 # 列出各個DiskUnc掃毒結果(只顯示中毒數量) diskVirusScanReport_yyyymmdd.csv
 # 列出所有中毒檔案路徑 VirusReport_yyyymmdd.csv
 
 $diskVirusScanReportPath = "$($outputFolderPath)\diskVirusScanReport.csv"
 $virusReportPath = "$($outputFolderPath)\VirusReport.csv"
-
 $diskScanReport = (Get-Content $diskScanReportPath | ConvertFrom-Csv)
 
 foreach ($disk in $diskScanReport) {
@@ -187,162 +185,12 @@ $outputFolderZipFilePath = "$($outputFolderPath).zip"
 Compress-Archive -Path $outputFolderPath -DestinationPath $outputFolderZipFilePath -Force
 
 # 寄信+zip
-$networkScanReport = (Get-Content $networkScanReportPath | ConvertFrom-Csv)
-# $diskScanReport = (Get-Content $diskScanReportPath | ConvertFrom-Csv)
-$diskVirusScanReport = (Get-Content $diskVirusScanReportPath | ConvertFrom-Csv)
-# $MailBodyHtml = ""
-# if (-Not(Test-Path -path $virusReportPath)) {
-#     $MailBodyHtml = "
-#     <pre>
-#     掃描$($networkScanReport.IP.Count)台，總共$($diskVirusScanReport.DiskUnc.Count)個磁碟，無中毒檔案，掃描報告附檔zip如下
-    
-#     [IP] 清單
-#     $($networkScanReport.IP -join "`r`n")
-    
-#     [Disk] 清單
-#     $($diskVirusScanReport.DiskUnc -join "`r`n")
-#     </pre>
-#     " -replace "    ",""
-# } else {
-#     $virusReport = (Get-Content $virusReportPath | ConvertFrom-Csv)
-    
-#     $MailBodyHtml = "
-#     <pre>
-#     掃描$($networkScanReport.IP.Count)台，總共$($diskVirusScanReport.DiskUnc.Count)個磁碟，中毒檔案$($virusReport.VirusPath.Count)個，掃描報告附檔zip如下
-    
-#     [IP] 清單
-#     $($networkScanReport.IP -join "`r`n")
-    
-#     [Disk] 清單
-#     $($diskVirusScanReport.DiskUnc -join "`r`n")
-    
-#     [病毒] 清單
-#     $($virusReport.VirusPath -join "`r`n")
-#     </pre>
-#     " -replace "    ",""
-# }
-$MailBodyHtml = ""
-if (-Not(Test-Path -path $virusReportPath)) {
-    $MailBodyHtml = "
-    <pre>
-    * 掃描$($networkScanReport.IP.Count)個IP，總共$($diskVirusScanReport.DiskUnc.Count)個磁碟，無中毒檔案，掃描報告附檔zip如下
-    
-    [IP]掃描結果
-    </pre>
-    <table border='1'>
-      <tr>
-        <th>time</th>
-        <th>Ip</th>
-        <th>message</th>
-      </tr>
-      $($networkScanReport | ForEach-Object {"
-        <tr>
-            <td>$($_.time)</td>
-            <td>$($_.Ip)</td>
-            <td>$($_.message)</td>
-        </tr>
-      "})
-    </table>
-
-    <pre>
-
-    [Disk]掃描結果
-    </pre>
-    <table border='1'>
-      <tr>
-        <th>time</th>
-        <th>Ip</th>
-        <th>DiskUnc</th>
-        <th>message</th>
-      </tr>
-      $($diskVirusScanReport | ForEach-Object {"
-        <tr>
-            <td>$($_.time)</td>
-            <td>$($_.Ip)</td>
-            <td>$($_.DiskUnc)</td>
-            <td>$($_.message)</td>
-        </tr>
-      "})
-    </table>
-    <pre>
-    [病毒]掃描結果
-    ---無中毒檔案---
-    </pre>
-    " -replace "    ",""
-} else {
-    $virusReport = (Get-Content $virusReportPath | ConvertFrom-Csv)
-    
-    $MailBodyHtml = "
-    <pre>
-    * 掃描$($networkScanReport.IP.Count)個IP，總共$($diskVirusScanReport.DiskUnc.Count)個磁碟，中毒檔案$($virusReport.VirusPath.Count)個，掃描報告附檔zip如下
-    
-    [IP]掃描結果
-    </pre>
-    <table border='1'>
-      <tr>
-        <th>time</th>
-        <th>Ip</th>
-        <th>message</th>
-      </tr>
-      $($networkScanReport | ForEach-Object {"
-        <tr>
-            <td>$($_.time)</td>
-            <td>$($_.Ip)</td>
-            <td>$($_.message)</td>
-        </tr>
-      "})
-    </table>
-
-    <pre>
-
-    [Disk]掃描結果
-    </pre>
-    <table border='1'>
-      <tr>
-        <th>time</th>
-        <th>Ip</th>
-        <th>DiskUnc</th>
-        <th>message</th>
-      </tr>
-      $($diskVirusScanReport | ForEach-Object {"
-        <tr>
-            <td>$($_.time)</td>
-            <td>$($_.Ip)</td>
-            <td>$($_.DiskUnc)</td>
-            <td>$($_.message)</td>
-        </tr>
-      "})
-    </table>
-    <pre>
-    [病毒]掃描結果
-    </pre>
-    <table border='1'>
-      <tr>
-        <th>time</th>
-        <th>Ip</th>
-        <th>DiskUnc</th>
-        <th>VirusType</th>
-        <th>VirusPath</th>
-      </tr>
-      $($virusReport | ForEach-Object {"
-        <tr>
-            <td>$($_.time)</td>
-            <td>$($_.Ip)</td>
-            <td>$($_.DiskUnc)</td>
-            <td>$($_.VirusType)</td>
-            <td>$($_.VirusPath)</td>
-        </tr>
-      "})
-    </table>
-    " -replace "    ",""
-}
-
 $EmailParams = @{
     To          = "ritchieliou@gamania.com"
     # Cc          = $Cc
     From        = "fsecureScan@gamania.com"
     Subject     = "[ITGT] 掃毒報告_$((Get-Date).ToString("yyyyMMdd"))"
-    Body        = $MailBodyHtml
+    Body        = createHtmlReport($networkScanReportPath,$diskVirusScanReportPath,$virusReportPath)
     BodyAsHtml  = $true
     Priority    = "High"
     SMTPServer  = "192.168.100.229"
