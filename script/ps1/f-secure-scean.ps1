@@ -1,31 +1,22 @@
-﻿Import-Module C:\script\ps1\functions\saveCsv.ps1
+﻿# add env
+$env:Path += ';C:\Program Files (x86)\F-Secure\Server Security\'
+
+# Import-Module
+Import-Module C:\script\ps1\functions\saveCsv.ps1
 Import-Module C:\script\ps1\functions\alert.ps1
 Import-Module C:\script\ps1\functions\virusReportReader.ps1
 Import-Module C:\script\ps1\functions\createHtmlReport.ps1
 
-$outputFolderPath = "C:\script\log\f-secure-scean_log\$((Get-Date).ToString("yyyyMMdd"))"    # 放csv簡述報告及所有HTML報告dir
-$credentials = (Get-Content -Raw -Path "C:\script\ps1\config\credentialsEncripted.json" | ConvertFrom-Json) | ForEach-Object {
+# load config file
+$config = (Get-Content -Raw -Path "C:\script\ps1\config\f-secure-scean-config.json" | ConvertFrom-Json)
+$credentials = $config.$credentials | ForEach-Object {
     New-Object System.Management.Automation.PSCredential (
         $_.account,
         ($_.passwordEncripted | ConvertTo-SecureString)
     )
 }
-
-# 取得 IP Array
-# $IPRangeArray = $(
-#     ((1..255) | ForEach-Object { "192.168.13.$($_)" })
-# )
-$IPRangeArray = $(
-    ((146..146) | ForEach-Object { "10.10.24.$($_)" })
-)
-# $IPRangeArray = $(
-#     ((131..134) | ForEach-Object { "10.10.24.$($_)" });
-#     ((146..146) | ForEach-Object { "10.10.24.$($_)" });
-#     ((154..154) | ForEach-Object { "10.10.24.$($_)" })
-# )
-
-# add env
-$env:Path += ';C:\Program Files (x86)\F-Secure\Server Security\'
+$outputFolderPath = "C:\script\log\f-secure-scean_log\$((Get-Date).ToString("yyyyMMdd"))"    # 放csv簡述報告及所有HTML報告dir
+$IPRangeArray = $config.ips
 
 # 全網段掃描結果 networkScanReport.csv
 # 硬碟清單 diskScanReport.csv
@@ -50,39 +41,55 @@ foreach ($IP in $IPRangeArray) {
     # test windows login
     foreach ($credential in $credentials) {
         try {
-            # 遠端作業
-            $PhysicalDiskUNCs = (
+            # 避開已安裝防毒的機器
+            $isInstallAntivirus = (
                 Invoke-Command -ComputerName $IP -ScriptBlock {
-                    Get-Disk | Where-Object {
-                        $_.BusType -notin "iSCSI"
-                    }| ForEach-Object {
-                    $_ | Get-Partition | Where-Object {
-                            -not $_.DriveLetter -eq ""
-                        }
-                    } | Select-Object DriveLetter,Size
+                    Test-Path "C:\Program Files (x86)\F-Secure\Server Security\fsscan.exe" -PathType Leaf
                 } -credential $credential -ErrorAction Stop
-            ) | ForEach-Object {"\\$($IP)\$($_.DriveLetter.ToLower())$"}
-
-            foreach ($DiskUnc in $PhysicalDiskUNCs) {
+            )
+            if ($isInstallAntivirus) {
+                # 已安裝防毒軟體  
                 $data = [PSCustomObject]@{
                     time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                     Ip = $IP
-                    ScanType = "smb"
-                    CredentialIndex = $credentials.IndexOf($credential)
-                    DiskUnc = $DiskUnc
+                    message = "已安裝防毒，無須遠端掃描"
                 }
-                # 存csv
-                saveCsv -outputFilePath $diskScanReportPath -data $data
+                saveCsv -outputFilePath $networkScanReportPath -data $data
+            } else {
+                # 未已安裝防毒軟體
+                $data = [PSCustomObject]@{
+                    time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
+                    Ip = $IP
+                    message = "WinRM登入成功"
+                }
+                saveCsv -outputFilePath $networkScanReportPath -data $data                  
+                
+                # 記錄將掃描之硬碟
+                $PhysicalDiskUNCs = (
+                    Invoke-Command -ComputerName $IP -ScriptBlock {
+                        Get-Disk | Where-Object {
+                            $_.BusType -notin "iSCSI"
+                        }| ForEach-Object {
+                        $_ | Get-Partition | Where-Object {
+                                -not $_.DriveLetter -eq ""
+                            }
+                        } | Select-Object DriveLetter,Size
+                    } -credential $credential -ErrorAction Stop
+                ) | ForEach-Object {"\\$($IP)\$($_.DriveLetter.ToLower())$"}
+    
+                foreach ($DiskUnc in $PhysicalDiskUNCs) {
+                    $data = [PSCustomObject]@{
+                        time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
+                        Ip = $IP
+                        ScanType = "smb"
+                        CredentialIndex = $credentials.IndexOf($credential)
+                        DiskUnc = $DiskUnc
+                    }
+                    # 存csv
+                    saveCsv -outputFilePath $diskScanReportPath -data $data
+                }
             }
-            
-            $data = [PSCustomObject]@{
-                time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-                Ip = $IP
-                message = "WinRM登入成功"
-            }
-            saveCsv -outputFilePath $networkScanReportPath -data $data
-
-            # 登入成功並完成掃描就換下一個IP
+            # 換下一個IP
             break
         } catch {
             if(($credentials.IndexOf($credential)+1) -eq $credentials.Count){
@@ -194,15 +201,15 @@ Compress-Archive -Path $outputFolderPath -DestinationPath $outputFolderZipFilePa
 
 # 寄信+zip
 $EmailParams = @{
-    To          = "ritchieliou@gamania.com"
+    To          = $config.SMTPTo
     # Cc          = $Cc
     From        = "fsecureScan@gamania.com"
-    Subject     = "[ITGT] 掃毒報告_$((Get-Date).ToString("yyyyMMdd"))"
+    Subject     = "[ITGT] $($config.SMTPProduct)_掃毒報告_$((Get-Date).ToString("yyyyMMdd"))"
     Body        = createHtmlReport($networkScanReportPath,$diskVirusScanReportPath,$virusReportPath)
     BodyAsHtml  = $true
     Priority    = "High"
-    SMTPServer  = "192.168.100.229"
-    Port        = 25
+    SMTPServer  = $config.SMTPServer
+    Port        = $config.SMTPPort
     Encoding    = "UTF8"
     Attachments = $outputFolderZipFilePath
 }
