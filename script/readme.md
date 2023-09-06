@@ -21,18 +21,31 @@
   1. `1.pingTest.csv`ping測試
     > 所有ips
      1. 成功
+        * ping成功訊息
      2. 失敗
+        * ping失敗訊息
   2. `2.LoginTest.csv`測試login
     > ping成功者
-     1. 成功 + ceenditialIndex
+     1. 成功
+        * Login成功訊息,ceenditialIndex
      2. 失敗
-  3. `3.DiskList.csv`取得DiskList(Login成功者)
-    > 登入成功者
-    * 過濾ISCSI、SMB的硬碟
-  4. 掃毒
+        * Login失敗訊息
+  3. `3.AntiVirusTest.csv`檢查防毒
+    > login成功者
+     1. 沒裝防毒
+        * 沒裝防毒訊息,ceenditialIndex
+     2. 已裝防毒
+        * 已裝防毒訊息
+  4. `4.DiskList.csv`取得DiskList
+    > 登入成功
+    > 未安裝防毒軟體
+    > 不是網路磁碟(過濾ISCSI、SMB的硬碟)
+    1. 成功
+       * 記錄需掃瞄硬碟,ceenditialIndex
+  5. 掃毒
     > 根據DiskList掃毒
     * 此動作可多線程運作
-  5. 產報告
+  6. 產報告
     > 全部磁碟掃描完成後，loop全部HTML報表
     1. `5.1.DiskListScanReport.csv`統計每個IP下中幾個毒
     2. `5.2.VirusReport.csv`loop報表過程發現的病毒抽出來寫入中毒報告。
