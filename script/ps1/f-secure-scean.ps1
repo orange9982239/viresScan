@@ -9,7 +9,7 @@ Import-Module C:\script\ps1\functions\createHtmlReport.ps1
 
 # load config file
 $config = (Get-Content -Raw -Path "C:\script\ps1\config\f-secure-scean-config.json" | ConvertFrom-Json)
-$credentials = $config.$credentials | ForEach-Object {
+$credentials = $config.credentials | ForEach-Object {
     New-Object System.Management.Automation.PSCredential (
         $_.account,
         ($_.passwordEncripted | ConvertTo-SecureString)
@@ -29,7 +29,7 @@ $virusReportPath = "$($outputFolderPath)\6.2.VirusReport.csv"
 # 1.pingTest
 foreach ($IP in $config.ips) {
     # time,ip,isPingSuccess 存至 pingTestPath
-    if ((Test-Connection $IP -Count 1 -Quiet) -eq $false) {
+    if ((Test-Connection $IP -Count 1 -Quiet)) {
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $IP
@@ -50,14 +50,18 @@ foreach ($IP in $config.ips) {
 $pingTest = (Get-Content $pingTestPath | ConvertFrom-Csv)
 $pingSuccessIp = $pingTest | Where-Object {$_.isPingSuccess -eq 1}
 foreach ($PC in $pingSuccessIp) {
-    # time,ip,loginResult,ceenditialIndex 存至 loginTestPath
+    # time,ip,loginResult,credentialIndex 存至 loginTestPath
     foreach ($credential in $credentials) {
         try {
+            Invoke-Command -ComputerName $PC.ip -ScriptBlock {
+                Write-Host "Hi"
+            } -credential $credential -ErrorAction Stop
+
             $data = [PSCustomObject]@{
                 time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                 ip = $PC.ip
                 loginResult = 1
-                ceenditialIndex = $credentials.IndexOf($credential)
+                credentialIndex = $credentials.IndexOf($credential)
             }
             saveCsv -outputFilePath $loginTestPath -data $data
             # 換下一個IP
@@ -68,7 +72,7 @@ foreach ($PC in $pingSuccessIp) {
                     time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                     ip = $PC.ip
                     loginResult = 0
-                    ceenditialIndex = ""
+                    credentialIndex = ""
                 }
                 # 存csv
                 saveCsv -outputFilePath $loginTestPath -data $data
@@ -79,13 +83,13 @@ foreach ($PC in $pingSuccessIp) {
 
 # 3.AntiVirusCheck
 $loginTest = (Get-Content $loginTestPath | ConvertFrom-Csv)
-$loginSuccessPC = $loginTest | Where-Object {$_.isPingSuccess -eq 1}
+$loginSuccessPC = $loginTest | Where-Object {$_.loginResult -eq 1}
 foreach ($PC in $LoginSuccessPC) {
-    # time,ip,hasAntiVirus,ceenditialIndex 存至 antiVirusCheckPath
+    # time,ip,hasAntiVirus,credentialIndex 存至 antiVirusCheckPath
     $isInstallAntivirus = (
         Invoke-Command -ComputerName $PC.ip -ScriptBlock {
             Test-Path "C:\Program Files (x86)\F-Secure\Server Security\fsscan.exe" -PathType Leaf
-        } -credential $credentials[$PC.CredentialIndex] -ErrorAction Stop
+        } -credential $credentials[$PC.credentialIndex] -ErrorAction Stop
     )
 
     if ($isInstallAntivirus) {
@@ -93,7 +97,7 @@ foreach ($PC in $LoginSuccessPC) {
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
             hasAntiVirus = 1
-            ceenditialIndex = $PC.ceenditialIndex
+            credentialIndex = $PC.credentialIndex
         }
         saveCsv -outputFilePath $antiVirusCheckPath -data $data
     } else {
@@ -101,34 +105,34 @@ foreach ($PC in $LoginSuccessPC) {
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
             hasAntiVirus = 0
-            ceenditialIndex = $PC.ceenditialIndex
+            credentialIndex = $PC.credentialIndex
         }
         saveCsv -outputFilePath $antiVirusCheckPath -data $data
     }
 }
 
-# 4.DiskList
+# 4.List Disk To Be Scan
 $antiVirusCheck = (Get-Content $antiVirusCheckPath | ConvertFrom-Csv)
 $pcWithoutAntiVirus = $antiVirusCheck | Where-Object {$_.hasAntiVirus -eq 0}
 foreach ($PC in $pcWithoutAntiVirus) {
-    # time,ip,ceenditialIndex,diskunc 存至 diskToBeScanPath
+    # time,ip,credentialIndex,diskunc 存至 diskToBeScanPath
     $PhysicalDiskUNCs = (
         Invoke-Command -ComputerName $PC.ip -ScriptBlock {
             Get-Disk | Where-Object {
                 $_.BusType -notin "iSCSI"
-            }| ForEach-Object {
-            $_ | Get-Partition | Where-Object {
+            } | ForEach-Object {
+                $_ | Get-Partition | Where-Object {
                     -not $_.DriveLetter -eq ""
                 }
             } | Select-Object DriveLetter,Size
-        } -credential $credential -ErrorAction Stop
-    ) | ForEach-Object {"\\$($PC.ip)\$($_.DriveLetter.ToLower())$"}
+        } -credential $credentials[$PC.credentialIndex]
+    ) | ForEach-Object {"\\$($PC.ip)\$($_.DriveLetter.ToString().ToLower())$"}
 
     foreach ($PhysicalDiskUNC in $PhysicalDiskUNCs) {
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
-            ceenditialIndex = $PC.ceenditialIndex
+            credentialIndex = $PC.credentialIndex
             diskunc = $PhysicalDiskUNC
         }
         saveCsv -outputFilePath $diskToBeScanPath -data $data
@@ -142,15 +146,19 @@ foreach ($disk in $diskToBeScan) {
     
     # 掃毒smb路徑並存檔到C:\script\log\f-secure-scean_log\yyyymmdd\scan_log_127.0.0.1_c$.html
     try {
-        $reportFilePath = "$($outputFolderPath)\scan_log_$($disk.ip)_$($disk.diskunc.substring($disk.DiskUnc.Length -2)).html"
+        # 連線smb(根據CredentialIndex取出特定Credential)
+        $credential = $credentials[$disk.CredentialIndex]
+        if (-Not (Test-Path $disk.diskunc)){
+            net use $($disk.diskunc) /user:$($credential.GetNetworkCredential().username) $($credential.GetNetworkCredential().password)
+        }
+        $reportFilePath = "$($outputFolderPath)\scan_log_$($disk.ip)_$($disk.diskunc.substring($disk.diskunc.Length -2)).html"
         fsscan $($disk.diskunc) /report=$reportFilePath
-
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
             diskunc = $disk.diskunc
             isScaned =  1
-            scanReport = reportFilePath
+            scanReport = $reportFilePath
             message = "掃毒完成"
         }
         saveCsv -outputFilePath $diskIsScanedPath -data $data
@@ -160,9 +168,9 @@ foreach ($disk in $diskToBeScan) {
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
             diskunc = $disk.diskunc
-            isScaned =  1
-            scanReport = reportFilePath
-            message = "掃毒出錯無法完成"
+            isScaned =  0
+            scanReport = ""
+            message = "連接網路磁碟$($disk.diskunc)出錯，錯誤訊息: $($_.Exception.Message)"
         }
         saveCsv -outputFilePath $diskIsScanedPath -data $data
     }
