@@ -215,9 +215,9 @@ Compress-Archive -Path $outputFolderPath -DestinationPath $outputFolderZipFilePa
 $EmailParams = @{
     To          = $config.SMTPTo
     # Cc          = $Cc
-    From        = "fsecureScan@gamania.com"
-    Subject     = "[ITGT] $($config.SMTPProduct)_掃毒報告_$((Get-Date).ToString("yyyyMMdd"))"
-    Body        = createHtmlReport($networkScanReportPath,$diskVirusScanReportPath,$virusReportPath)
+    From        = $config.SMTPFrom
+    Subject     = "$($config.SMTPSubject)_$((Get-Date).ToString("yyyyMMdd"))"
+    Body        = createHtmlReport($pingTestPath,$loginTestPath,$antiVirusCheckPath,$diskToBeScanPath,$diskIsScanedPath,$diskListScanReportPath,$virusReportPath)
     BodyAsHtml  = $true
     Priority    = "High"
     SMTPServer  = $config.SMTPServer

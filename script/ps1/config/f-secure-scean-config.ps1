@@ -2,8 +2,9 @@
 {
     "SMTPPort":"{SMTPPort}",
     "SMTPServer":"{SMTPServer}",
+    "SMTPFrom":"{SMTPFrom}",
     "SMTPTo":"{SMTPTo}",
-    "SMTPProduct":"{ProductName}",
+    "SMTPSubject":"{SMTPSubject}",
     "credentials":[
         { 
             "account": "{帳號1}", 

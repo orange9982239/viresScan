@@ -1,127 +1,67 @@
 ﻿function createHtmlReport(
-	$networkScanReportPath,
-	$diskVirusScanReportPath,
+	$pingTestPath,
+	$loginTestPath,
+	$antiVirusCheckPath,
+	$diskToBeScanPath,
+	$diskIsScanedPath,
+	$diskListScanReportPath,
 	$virusReportPath
 ) {
-	if (-Not(Test-Path -path $virusReportPath)) {
-		# 未中毒情況
-		$networkScanReport = (Get-Content $networkScanReportPath | ConvertFrom-Csv)
-		$diskVirusScanReport = (Get-Content $diskVirusScanReportPath | ConvertFrom-Csv)
-		
-		return "
-		<pre>
-		* 掃描$($networkScanReport.IP.Count)個IP，總共$($diskVirusScanReport.DiskUnc.Count)個磁碟，無中毒檔案，掃描報告附檔zip如下
-		
-		[IP]掃描結果
-		</pre>
-		<table border='1'>
-		  <tr>
-			<th>time</th>
-			<th>Ip</th>
-			<th>message</th>
-		  </tr>
-		  $($networkScanReport | ForEach-Object {"
-			<tr>
-				<td>$($_.time)</td>
-				<td>$($_.Ip)</td>
-				<td>$($_.message)</td>
-			</tr>
-		  "})
-		</table>
+	# 取出掃毒引擎版本號
+	## 取出任一個磁碟的掃毒報告
+	$outputFolderPath = (ls $pingTestPath).Directory.FullName
+	$fsecureReportfiles = (ls $outputFolderPath | Where-Object { $_.Extension -eq ".html"}).FullName
+	## 使用XPath取出掃毒引擎版本號
+	$xml = [xml]$(Get-Content -path $($fsecureReportfiles[0]) -raw -Encoding UTF8)  # 將 HTML 轉換為XML
+	$fsecureScanEnginData = $xml | Select-Xml "//ul[@class='list_engines']/li" | ForEach-Object {$_.Node.'#text'}
+	return "
+	<html xmlns='http://www.w3.org/1999/xhtml'>
+	* 掃描結果
+	<table border='1'>
+		<tr>
+			<th>掃瞄(IP)數</th>
+			<th>可登入(PC)數</th>
+			<th>未安裝防毒(PC)數</th>
+			<th>有安裝防毒(PC)數</th>
+			<th>總(硬碟)數</th>
+			<th>掃毒完成(硬碟)數</th>
+			<th>(中毒檔案)數</th>
+		</tr>
+		<tr>
+			<td>$((Get-Content $pingTestPath | ConvertFrom-Csv).Count)</td>
+			<td>$((Get-Content $loginTestPath | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1}).Count)</td>
+			<td>$((Get-Content $antiVirusCheckPath | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0}).Count)</td>
+			<td>$((Get-Content $antiVirusCheckPath | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1}).Count)</td>
+			<td>$((Get-Content $diskToBeScanPath | ConvertFrom-Csv).Count)</td>
+			<td>$((Get-Content $diskListScanReportPath | ConvertFrom-Csv).Count)</td>
+			<td>$(if (Test-Path -path $virusReportPath) {(Get-Content $virusReportPath | ConvertFrom-Csv).Count} else {0})</td>
+		</tr>
+	</table>
 	
-		<pre>
+	* 防毒引擎資訊
+	<ul>$($fsecureScanEnginData | ForEach-Object {"`n  <li>$($_)</li>"})
+	</ul>
 	
-		[Disk]掃描結果
-		</pre>
-		<table border='1'>
-		  <tr>
-			<th>time</th>
-			<th>Ip</th>
-			<th>DiskUnc</th>
-			<th>message</th>
-		  </tr>
-		  $($diskVirusScanReport | ForEach-Object {"
-			<tr>
-				<td>$($_.time)</td>
-				<td>$($_.Ip)</td>
-				<td>$($_.DiskUnc)</td>
-				<td>$($_.message)</td>
-			</tr>
-		  "})
-		</table>
-		<pre>
-		[病毒]掃描結果
-		---無中毒檔案---
-		</pre>
-		" -replace "    ",""
-	} else {
-		# 中毒情況
-		$networkScanReport = (Get-Content $networkScanReportPath | ConvertFrom-Csv)
-		$diskVirusScanReport = (Get-Content $diskVirusScanReportPath | ConvertFrom-Csv)
-		$virusReport = (Get-Content $virusReportPath | ConvertFrom-Csv)
-		
-		return "
-		<pre>
-		* 掃描$($networkScanReport.IP.Count)個IP，總共$($diskVirusScanReport.DiskUnc.Count)個磁碟，中毒檔案$($virusReport.VirusPath.Count)個，掃描報告附檔zip如下
-		
-		[IP]掃描結果
-		</pre>
-		<table border='1'>
-		  <tr>
-			<th>time</th>
-			<th>Ip</th>
-			<th>message</th>
-		  </tr>
-		  $($networkScanReport | ForEach-Object {"
-			<tr>
-				<td>$($_.time)</td>
-				<td>$($_.Ip)</td>
-				<td>$($_.message)</td>
-			</tr>
-		  "})
-		</table>
-	
-		<pre>
-	
-		[Disk]掃描結果
-		</pre>
-		<table border='1'>
-		  <tr>
-			<th>time</th>
-			<th>Ip</th>
-			<th>DiskUnc</th>
-			<th>message</th>
-		  </tr>
-		  $($diskVirusScanReport | ForEach-Object {"
-			<tr>
-				<td>$($_.time)</td>
-				<td>$($_.Ip)</td>
-				<td>$($_.DiskUnc)</td>
-				<td>$($_.message)</td>
-			</tr>
-		  "})
-		</table>
-		<pre>
-		[病毒]掃描結果
-		</pre>
-		<table border='1'>
-		  <tr>
-			<th>time</th>
-			<th>Ip</th>
-			<th>DiskUnc</th>
-			<th>VirusType</th>
-			<th>VirusPath</th>
-		  </tr>
-		  $($virusReport | ForEach-Object {"
-			<tr>
-				<td>$($_.time)</td>
-				<td>$($_.Ip)</td>
-				<td>$($_.DiskUnc)</td>
-				<td>$($_.VirusType)</td>
-				<td>$($_.VirusPath)</td>
-			</tr>
-		  "})
-		</table>
-		" -replace "    ",""
-	}
+	$(
+		if (Test-Path -path $virusReportPath) {
+			$virusReport = (Get-Content $virusReportPath | ConvertFrom-Csv)
+			"
+			* 中毒清單
+			<table border='1'>
+				<tr>
+					<th>病毒名稱</th>
+					<th>病毒檔案路徑</th>
+				</tr>
+				$($virusReport | ForEach-Object {
+					"<tr>
+						<td>$($_.virusName)</td>
+						<td>$($_.virusPath)</td>
+					</tr>"
+				})
+			</table>
+			"
+		}
+	)
+	</html>
+	" -replace "    ",""
 }
