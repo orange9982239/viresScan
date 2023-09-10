@@ -39,13 +39,12 @@ function saveCsvWithMutex($outputFilePath,[PSCustomObject]$data,$isPrint=$false)
     }
     
     # 建立互斥鎖
-    $mtx = New-Object System.Threading.Mutex($false, $outputFilePath)
+    $mtx = New-Object System.Threading.Mutex($false,(Split-Path $outputFilePath -leaf))
     
     # 等待其他互斥鎖解除後存csv
     try {
-        If ($mtx.WaitOne()) {
+        if ($mtx.WaitOne()) {
             if (Test-Path $outputFilePath) {	
-        
                 Export-Csv -InputObject $data -Path $outputFilePath -NoTypeInformation -Encoding UTF8 -Append -Force
             } else {
                 New-Item -Path $outputFilePath -ItemType File -Force

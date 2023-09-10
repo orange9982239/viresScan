@@ -1,7 +1,4 @@
-﻿# add env
-$env:Path += ';C:\Program Files (x86)\F-Secure\Server Security\'
-
-# Import-Module
+﻿# Import-Module
 Import-Module C:\script\ps1\functions\saveCsv.ps1
 Import-Module C:\script\ps1\functions\alert.ps1
 Import-Module C:\script\ps1\functions\virusReportReader.ps1
@@ -27,7 +24,10 @@ $diskListScanReportPath = "$($outputFolderPath)\6.1.DiskListScanReport.csv"
 $virusReportPath = "$($outputFolderPath)\6.2.VirusReport.csv"
 
 # 1.pingTest
-foreach ($IP in $config.ips) {
+$config.ips | ForEach-Object -Parallel {
+    Import-Module C:\script\ps1\functions\saveCsv.ps1
+    $pingTestPath = $using:pingTestPath
+    $IP = $_
     # time,ip,isPingSuccess 存至 pingTestPath
     if ((Test-Connection $IP -Count 1 -Quiet)) {
         $data = [PSCustomObject]@{
@@ -44,18 +44,27 @@ foreach ($IP in $config.ips) {
         }
         saveCsvWithMutex -outputFilePath $pingTestPath -data $data
     }
-}
+} -ThrottleLimit 20
 
 # 2.LoginTest
 $pingTest = (Get-Content $pingTestPath | ConvertFrom-Csv)
 $pingSuccessIp = $pingTest | Where-Object {$_.isPingSuccess -eq 1}
-foreach ($PC in $pingSuccessIp) {
-    # time,ip,loginResult,credentialIndex 存至 loginTestPath
+$pingSuccessIp | ForEach-Object -Parallel {
+    Import-Module C:\script\ps1\functions\saveCsv.ps1
+    $PC = $_
+    $credentials = $using:credentials
+    $loginTestPath = $using:loginTestPath
+
     foreach ($credential in $credentials) {
         try {
-            Invoke-Command -ComputerName $PC.ip -ScriptBlock {
-                Write-Host "Hi"
-            } -credential $credential -ErrorAction Stop
+            $isLoginSuccess = (
+                Invoke-Command -ComputerName $PC.ip -ScriptBlock {
+                    return $true
+                } -credential $credential -ErrorAction Stop
+            )
+            if ($isLoginSuccess) {
+                Write-Host "$($PC.ip) is login success by credential[$($credentials.IndexOf($credential))]"
+            }
 
             $data = [PSCustomObject]@{
                 time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
@@ -79,12 +88,17 @@ foreach ($PC in $pingSuccessIp) {
             }
         }
     }
-}
+} -ThrottleLimit 20
 
 # 3.AntiVirusCheck
 $loginTest = (Get-Content $loginTestPath | ConvertFrom-Csv)
 $loginSuccessPC = $loginTest | Where-Object {$_.loginResult -eq 1}
-foreach ($PC in $LoginSuccessPC) {
+$LoginSuccessPC | ForEach-Object -Parallel {
+    Import-Module C:\script\ps1\functions\saveCsv.ps1
+    $PC = $_
+    $credentials = $using:credentials
+    $antiVirusCheckPath = $using:antiVirusCheckPath
+
     # time,ip,hasAntiVirus,credentialIndex 存至 antiVirusCheckPath
     $isInstallAntivirus = (
         Invoke-Command -ComputerName $PC.ip -ScriptBlock {
@@ -109,12 +123,16 @@ foreach ($PC in $LoginSuccessPC) {
         }
         saveCsvWithMutex -outputFilePath $antiVirusCheckPath -data $data
     }
-}
+} -ThrottleLimit 5
 
 # 4.List Disk To Be Scan
 $antiVirusCheck = (Get-Content $antiVirusCheckPath | ConvertFrom-Csv)
 $pcWithoutAntiVirus = $antiVirusCheck | Where-Object {$_.hasAntiVirus -eq 0}
-foreach ($PC in $pcWithoutAntiVirus) {
+$pcWithoutAntiVirus | ForEach-Object -Parallel {
+    Import-Module C:\script\ps1\functions\saveCsv.ps1
+    $PC = $_
+    $credentials = $using:credentials
+    $diskToBeScanPath = $using:diskToBeScanPath
     # time,ip,credentialIndex,diskunc 存至 diskToBeScanPath
     $PhysicalDiskUNCs = (
         Invoke-Command -ComputerName $PC.ip -ScriptBlock {
@@ -137,22 +155,26 @@ foreach ($PC in $pcWithoutAntiVirus) {
         }
         saveCsvWithMutex -outputFilePath $diskToBeScanPath -data $data
     }
-}
+} -ThrottleLimit 5
 
 # 5.Scan 
+$diskToBeScan = (Get-Content $diskToBeScanPath | ConvertFrom-Csv)
 $diskToBeScan | ForEach-Object -Parallel {
+    # add env
+    $env:Path += ';C:\Program Files (x86)\F-Secure\Server Security\'
+    # Import-Module
     Import-Module C:\script\ps1\functions\saveCsv.ps1
+    # 外部variable引入
     $disk = $_
     $credentials = $using:credentials
     $diskIsScanedPath = $using:diskIsScanedPath
     $outputFolderPath = $using:outputFolderPath
-
     # time,ip,diskunc,isScaned,scanReport 存至 diskIsScaned
         
     # 掃毒smb路徑並存檔到C:\script\log\f-secure-scean_log\yyyymmdd\scan_log_127.0.0.1_c$.html
     try {
-        # 連線smb(根據CredentialIndex取出特定Credential)
-        $credential = $credentials[$disk.CredentialIndex]
+        # 連線smb(根據credentialIndex取出特定Credential)
+        $credential = $credentials[$disk.credentialIndex]
         if (-Not (Test-Path $disk.diskunc)){
             net use $($disk.diskunc) /user:$($credential.GetNetworkCredential().username) $($credential.GetNetworkCredential().password)
         }
