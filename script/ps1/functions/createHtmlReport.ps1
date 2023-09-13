@@ -28,13 +28,13 @@
 			<th>(中毒檔案)數</th>
 		</tr>
 		<tr>
-			<td>$((Get-Content $pingTestPath | ConvertFrom-Csv).Count)</td>
-			<td>$((Get-Content $loginTestPath | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1}).Count)</td>
-			<td>$((Get-Content $antiVirusCheckPath | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0}).Count)</td>
-			<td>$((Get-Content $antiVirusCheckPath | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1}).Count)</td>
-			<td>$((Get-Content $diskToBeScanPath | ConvertFrom-Csv).Count)</td>
-			<td>$((Get-Content $diskListScanReportPath | ConvertFrom-Csv).Count)</td>
-			<td>$(if (Test-Path -path $virusReportPath) {(Get-Content $virusReportPath | ConvertFrom-Csv).Count} else {0})</td>
+			<td>$((Get-Content $pingTestPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
+			<td>$((Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1}).Count)</td>
+			<td>$((Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0}).Count)</td>
+			<td>$((Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1}).Count)</td>
+			<td>$((Get-Content $diskToBeScanPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
+			<td>$((Get-Content $diskListScanReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
+			<td>$(if (Test-Path -path $virusReportPath) {(Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count} else {0})</td>
 		</tr>
 	</table>
 	
@@ -44,7 +44,7 @@
 	
 	$(
 		if (Test-Path -path $virusReportPath) {
-			$virusReport = (Get-Content $virusReportPath | ConvertFrom-Csv)
+			$virusReport = (Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)
 			"
 			* 中毒清單
 			<table border='1'>

@@ -211,13 +211,15 @@ foreach ($disk in $diskIsScaned) {
 $outputFolderZipFilePath = "$($outputFolderPath).zip"
 Compress-Archive -Path $outputFolderPath -DestinationPath $outputFolderZipFilePath -Force
 
+$HtmlBodyString = (createHtmlReport $pingTestPath $loginTestPath $antiVirusCheckPath $diskToBeScanPath $diskIsScanedPath $diskListScanReportPath $virusReportPath)
+
 # 寄信+zip
 $EmailParams = @{
     To          = $config.SMTPTo
     # Cc          = $Cc
     From        = $config.SMTPFrom
     Subject     = "$($config.SMTPSubject)_$((Get-Date).ToString("yyyyMMdd"))"
-    Body        = createHtmlReport($pingTestPath,$loginTestPath,$antiVirusCheckPath,$diskToBeScanPath,$diskIsScanedPath,$diskListScanReportPath,$virusReportPath)
+    Body        = $HtmlBodyString
     BodyAsHtml  = $true
     Priority    = "High"
     SMTPServer  = $config.SMTPServer
