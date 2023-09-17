@@ -17,16 +17,7 @@
 ```
 # 流程圖
 > ![flow](/script/ps1/flow.drawio.svg)
-
 # todo
-* 報表該長怎樣?
-  * 掃多少IP、可ping幾台                $pingTestPath
-	* 登入測試多少台、多少台可登入          $loginTestPath,
-	* 可登入之PC中有多少台未安裝防毒        $antiVirusCheckPath,
-	* 可登入之PC中未安裝防毒之電腦硬碟清單  $diskToBeScanPath,
-	* 已成功掃瞄硬碟清單                  $diskIsScanedPath,
-	* 磁碟中毒數量                        $diskListScanReportPath,
-	* 病毒報告                            $virusReportPath
 * 多線程版本僅在掃毒時多線程，其他不用。
 * 放在git公開儲存庫(注意好資安 公司、產品、帳密、mail)
 # wade
@@ -69,3 +60,11 @@
     > 全部磁碟掃描完成後，loop全部HTML報表
     1. `6.1.diskListScanReport.csv`統計每個IP下中幾個毒
     2. `6.2.virusReport.csv`loop報表過程發現的病毒抽出來寫入中毒報告。
+* 20230917 報表
+  * 掃多少IP、可ping幾台                $pingTestPath
+	* 登入測試多少台、多少台可登入          $loginTestPath,
+	* 可登入之PC中有多少台未安裝防毒        $antiVirusCheckPath,
+	* 可登入之PC中未安裝防毒之電腦硬碟清單  $diskToBeScanPath,
+	* 已成功掃瞄硬碟清單                  $diskIsScanedPath,
+	* 磁碟中毒數量                        $diskListScanReportPath,
+	* 病毒報告                            $virusReportPath
