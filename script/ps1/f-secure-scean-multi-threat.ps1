@@ -182,7 +182,7 @@ $diskToBeScan | ForEach-Object -Parallel {
         fsscan $($disk.diskunc) /report=$reportFilePath
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-            ip = $PC.ip
+            ip = $disk.ip
             diskunc = $disk.diskunc
             isScaned =  1
             scanReport = $reportFilePath
@@ -193,7 +193,7 @@ $diskToBeScan | ForEach-Object -Parallel {
     catch {
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-            ip = $PC.ip
+            ip = $disk.ip
             diskunc = $disk.diskunc
             isScaned =  0
             scanReport = ""

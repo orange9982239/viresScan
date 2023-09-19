@@ -155,7 +155,7 @@ foreach ($disk in $diskToBeScan) {
         fsscan $($disk.diskunc) /report=$reportFilePath
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-            ip = $PC.ip
+            ip = $disk.ip
             diskunc = $disk.diskunc
             isScaned =  1
             scanReport = $reportFilePath
@@ -166,7 +166,7 @@ foreach ($disk in $diskToBeScan) {
     catch {
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-            ip = $PC.ip
+            ip = $disk.ip
             diskunc = $disk.diskunc
             isScaned =  0
             scanReport = ""
