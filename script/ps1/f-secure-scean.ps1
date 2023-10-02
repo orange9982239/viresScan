@@ -15,7 +15,8 @@ $credentials = $config.credentials | ForEach-Object {
         ($_.passwordEncripted | ConvertTo-SecureString)
     )
 }
-$outputFolderPath = "C:\script\log\f-secure-scean_log\$((Get-Date).ToString("yyyyMMdd"))"    # 放csv簡述報告及所有HTML報告dir
+$startDateYYYYMMDDString = (Get-Date).ToString("yyyyMMdd")
+$outputFolderPath = "C:\script\log\f-secure-scean_log\$($startDateYYYYMMDDString)"    # 放csv簡述報告及所有HTML報告dir
 
 # output csv
 $pingTestPath = "$($outputFolderPath)\1.pingTest.csv"
@@ -218,7 +219,7 @@ $EmailParams = @{
     To          = $config.SMTPTo
     # Cc          = $Cc
     From        = $config.SMTPFrom
-    Subject     = "$($config.SMTPSubject)_$((Get-Date).ToString("yyyyMMdd"))"
+    Subject     = "$($config.SMTPSubject)_$($startDateYYYYMMDDString)"
     Body        = $HtmlBodyString
     BodyAsHtml  = $true
     Priority    = "High"
