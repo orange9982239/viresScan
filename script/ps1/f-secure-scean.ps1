@@ -163,6 +163,7 @@ foreach ($disk in $diskToBeScan) {
             message = "掃毒完成"
         }
         saveCsv -outputFilePath $diskIsScanedPath -data $data
+        net use $disk.diskunc /delete
     }
     catch {
         $data = [PSCustomObject]@{
