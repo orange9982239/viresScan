@@ -68,3 +68,5 @@
 	* 已成功掃瞄硬碟清單                  $diskIsScanedPath,
 	* 磁碟中毒數量                        $diskListScanReportPath,
 	* 病毒報告                            $virusReportPath
+* 20231005 可能是因為net use hold太多Get-SmbConnection所以炸掉，改成掃完段開連線
+* 20231005 將登入失敗清單列在mail報告上
