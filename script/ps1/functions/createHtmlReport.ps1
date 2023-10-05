@@ -37,7 +37,11 @@
 			<td>$(if (Test-Path -path $virusReportPath) {(Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count} else {0})</td>
 		</tr>
 	</table>
-	
+
+	* 不可登入PC IP清單
+	<ul>$((Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 0}) | ForEach-Object {"`n  <li>$($_.ip)</li>"})
+	</ul>
+
 	* 防毒引擎資訊
 	<ul>$($fsecureScanEnginData | ForEach-Object {"`n  <li>$($_)</li>"})
 	</ul>
