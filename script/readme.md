@@ -58,6 +58,11 @@ $physicalDisks | ForEach-Object {
     }
 }
 ```
+# linux版本
+1. 準備
+  * 安裝sshfs-win
+  * 安裝winfsp
+  * 引入Renci.SshNet.dll
 # Todo
 * 多線程版本僅在掃毒時多線程，其他不用。
 * 放在git公開儲存庫(注意好資安 公司、產品、帳密、mail)
@@ -112,3 +117,5 @@ $physicalDisks | ForEach-Object {
 * 20231008 no-ipc-share版本修正
   * 若已開路徑分享且未有完整讀寫權限則補開。
   * 掃毒帳號改完整讀寫權限(Read=>Full)。
+* 20231005 加入LINUX初始版本
+* 20231009 Linux版本加入判斷OS中尚未安裝防毒軟體。
