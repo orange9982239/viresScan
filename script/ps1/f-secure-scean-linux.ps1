@@ -24,7 +24,6 @@ $outputFolderPath = "C:\script\log\f-secure-scean_log\$($startDateYYYYMMDDString
 $pingTestPath = "$($outputFolderPath)\1.pingTest.csv"
 $loginTestPath = "$($outputFolderPath)\2.LoginTest.csv"
 $antiVirusCheckPath = "$($outputFolderPath)\3.AntiVirusCheck.csv"
-# $diskToBeScanPath = "$($outputFolderPath)\4.diskToBeScan.csv"
 $diskIsScanedPath = "$($outputFolderPath)\5.diskIsScaned.csv"
 $diskListScanReportPath = "$($outputFolderPath)\6.1.DiskListScanReport.csv"
 $virusReportPath = "$($outputFolderPath)\6.2.VirusReport.csv"
@@ -158,7 +157,7 @@ foreach ($PC in $PCToBeScan) {
             net use $sshUncPath /persistent:yes "$($credential.GetNetworkCredential().password)"
         }
 
-        $reportFilePath = "$($outputFolderPath)\scan_log_$($sshUncPath).html"
+        $reportFilePath = "$($outputFolderPath)\scan_log_$($sshString).html"
         fsscan $sshUncPath /report=$reportFilePath
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
@@ -193,7 +192,7 @@ foreach ($disk in $diskIsScaned) {
     ### time,diskunc,virusCount 存至 diskListScanReportPath
     ## 6.2.virusReport
     ### time,virusName,virusPath 存至 virusReportPath
-    $diskScanReport = (virusReportReader $(Get-Content -path $disk.scanReport -raw -Encoding UTF8))
+    $diskScanReport = [Array](virusReportReader $(Get-Content -path $disk.scanReport -raw -Encoding UTF8))
     
     $data = [PSCustomObject]@{
         time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
@@ -221,7 +220,7 @@ foreach ($disk in $diskIsScaned) {
 $outputFolderZipFilePath = "$($outputFolderPath).zip"
 Compress-Archive -Path $outputFolderPath -DestinationPath $outputFolderZipFilePath -Force
 
-$HtmlBodyString = (createHtmlReport $pingTestPath $loginTestPath $antiVirusCheckPath $diskToBeScanPath $diskIsScanedPath $diskListScanReportPath $virusReportPath)
+$HtmlBodyString = (createHtmlLinuxReport $pingTestPath $loginTestPath $antiVirusCheckPath $diskIsScanedPath $diskListScanReportPath $virusReportPath)
 
 # 寄信+zip
 $EmailParams = @{
