@@ -64,20 +64,20 @@ $pingSuccessIp | ForEach-Object -Parallel {
                 } -credential $credential -ErrorAction Stop
             )
             if ($isLoginSuccess) {
-                Write-Host "$($PC.ip) is login success by credential[$($credentials.IndexOf($credential))]"
+                Write-Host "$($PC.ip) is login success by credential[$([Array]::IndexOf($credentials,$credential))]"
             }
 
             $data = [PSCustomObject]@{
                 time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                 ip = $PC.ip
                 loginResult = 1
-                credentialIndex = $credentials.IndexOf($credential)
+                credentialIndex = [Array]::IndexOf($credentials,$credential)
             }
             saveCsvWithMutex -outputFilePath $loginTestPath -data $data
             # 換下一個IP
             break
         } catch {
-            if(($credentials.IndexOf($credential)+1) -eq $credentials.Count){
+            if(([Array]::IndexOf($credentials,$credential)+1) -eq $credentials.Count){
                 $data = [PSCustomObject]@{
                     time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                     ip = $PC.ip
