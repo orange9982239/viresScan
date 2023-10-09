@@ -73,14 +73,14 @@ foreach ($PC in $pingSuccessIp) {
                 time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                 ip = $PC.ip
                 loginResult = 1
-                credentialIndex = $credentials.IndexOf($credential)
+                credentialIndex = [Array]::IndexOf($credentials,$credential)
             }
             saveCsv -outputFilePath $loginTestPath -data $data
             # 換下一個IP
             break
         }
         catch {
-            if(($credentials.IndexOf($credential)+1) -eq $credentials.Count){
+            if(([Array]::IndexOf($credentials,$credential)+1) -eq $credentials.Count){
                 $data = [PSCustomObject]@{
                     time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                     ip = $PC.ip
@@ -141,7 +141,7 @@ foreach ($PC in $LoginSuccessPC) {
 }
 
 # 5.Scan 
-$PCToBeScan = (Get-Content $antiVirusCheckPath | Where-Object {$_.hasAntiVirus -eq 0} | ConvertFrom-Csv)
+$PCToBeScan = (Get-Content $antiVirusCheckPath | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0})
 foreach ($PC in $PCToBeScan) {
     # time,ip,diskunc,isScaned,scanReport 存至 diskIsScaned
     
@@ -158,8 +158,8 @@ foreach ($PC in $PCToBeScan) {
             net use $sshUncPath /persistent:yes "$($credential.GetNetworkCredential().password)"
         }
 
-        $reportFilePath = "$($outputFolderPath)\scan_log_$($sshUncPath)).html"
-        fsscan $($PC.diskunc) /report=$reportFilePath
+        $reportFilePath = "$($outputFolderPath)\scan_log_$($sshUncPath).html"
+        fsscan $sshUncPath /report=$reportFilePath
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
