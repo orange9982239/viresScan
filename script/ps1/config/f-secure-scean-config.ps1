@@ -21,6 +21,9 @@
             "start":"{ips_start}",
             "end":"{ips_end}"
         }
+    ],
+    "ignore":[
+        "{ignore_ip}"
     ]
 }
 "@ | ConvertFrom-Json
@@ -40,6 +43,9 @@ $config.credentials = $encryptedCredentials
 $ips = foreach ($ipRange in $config.ipRanges) {
     (($ipRange.start..$ipRange.end) | ForEach-Object { "$($ipRange.head)$($_)" })
 }
+
+$ips = $ips | Where-Object{ $_ -notin $config.ignore }
+
 # 用新的ips屬性接資料
 $config | Add-Member -MemberType NoteProperty -Name 'ips' -Value $ips -PassThru
 
