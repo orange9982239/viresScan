@@ -48,7 +48,7 @@ foreach ($IP in $config.ips) {
 }
 
 # 2.LoginTest
-$pingTest = (Get-Content $pingTestPath | ConvertFrom-Csv)
+$pingTest = [Array](Get-Content $pingTestPath | ConvertFrom-Csv)
 $pingSuccessIp = $pingTest | Where-Object {$_.isPingSuccess -eq 1}
 foreach ($PC in $pingSuccessIp) {
     # time,ip,loginResult,credentialIndex 存至 loginTestPath
@@ -83,7 +83,7 @@ foreach ($PC in $pingSuccessIp) {
 }
 
 # 3.AntiVirusCheck
-$loginTest = (Get-Content $loginTestPath | ConvertFrom-Csv)
+$loginTest = [Array](Get-Content $loginTestPath | ConvertFrom-Csv)
 $loginSuccessPC = $loginTest | Where-Object {$_.loginResult -eq 1}
 foreach ($PC in $LoginSuccessPC) {
     # time,ip,hasAntiVirus,credentialIndex 存至 antiVirusCheckPath
@@ -114,7 +114,7 @@ foreach ($PC in $LoginSuccessPC) {
 
 
 # 4.List Disk To Be Scan
-$antiVirusCheck = (Get-Content $antiVirusCheckPath | ConvertFrom-Csv)
+$antiVirusCheck = [Array](Get-Content $antiVirusCheckPath | ConvertFrom-Csv)
 $pcWithoutAntiVirus = $antiVirusCheck | Where-Object {$_.hasAntiVirus -eq 0}
 foreach ($PC in $pcWithoutAntiVirus) {
     # time,ip,credentialIndex,diskunc 存至 diskToBeScanPath
@@ -123,7 +123,7 @@ foreach ($PC in $pcWithoutAntiVirus) {
     $PhysicalDiskUNCs = (
         Invoke-Command -ComputerName $PC.ip -ScriptBlock {
             # 1. 取出所有非網路連線的磁碟
-            $physicalDisks = (
+            $physicalDisks = [Array] (
                 Get-Disk | Where-Object {
                     $_.BusType -notin "iSCSI"
                 } | ForEach-Object {
@@ -166,72 +166,73 @@ foreach ($PC in $pcWithoutAntiVirus) {
         saveCsv -outputFilePath $diskToBeScanPath -data $data
     }
 }
-
-# 5.Scan 
-$diskToBeScan = (Get-Content $diskToBeScanPath | ConvertFrom-Csv)
-foreach ($disk in $diskToBeScan) {
-    # time,ip,diskunc,isScaned,scanReport 存至 diskIsScaned
-    
-    # 掃毒smb路徑並存檔到C:\script\log\f-secure-scean_log\yyyymmdd\scan_log_127.0.0.1_c$.html
-    try {
-        # 連線smb(根據CredentialIndex取出特定Credential)
-        $credential = $credentials[$disk.CredentialIndex]
-        if (-Not (Test-Path $disk.diskunc)){
-            net use $($disk.diskunc) /user:$($credential.GetNetworkCredential().username) $($credential.GetNetworkCredential().password)
-        }
-        $reportFilePath = "$($outputFolderPath)\scan_log_$($disk.ip)_$($disk.diskunc.substring($disk.diskunc.Length -2)).html"
-        fsscan $($disk.diskunc) /report=$reportFilePath
-        $data = [PSCustomObject]@{
-            time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-            ip = $disk.ip
-            diskunc = $disk.diskunc
-            isScaned =  1
-            scanReport = $reportFilePath
-            message = "掃毒完成"
-        }
-        saveCsv -outputFilePath $diskIsScanedPath -data $data
-        net use $disk.diskunc /delete
-    }
-    catch {
-        $data = [PSCustomObject]@{
-            time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-            ip = $disk.ip
-            diskunc = $disk.diskunc
-            isScaned =  0
-            scanReport = ""
-            message = "連接網路磁碟$($disk.diskunc)出錯，錯誤訊息: $($_.Exception.Message)"
-        }
-        saveCsv -outputFilePath $diskIsScanedPath -data $data
-    }
-}
-
-# 6.Report
-$diskIsScaned = (Get-Content $diskIsScanedPath | ConvertFrom-Csv)
-foreach ($disk in $diskIsScaned) {
-    ## 6.1.diskListScanReport
-    ### time,diskunc,virusCount 存至 diskListScanReportPath
-    ## 6.2.virusReport
-    ### time,virusName,virusPath 存至 virusReportPath
-    $diskScanReport = (virusReportReader $(Get-Content -path $disk.scanReport -raw -Encoding UTF8))
-    
-    $data = [PSCustomObject]@{
-        time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
-        ip = $disk.ip
-        diskunc = $disk.diskunc
-        virusCount = $diskScanReport.Count
-    }
-    saveCsv -outputFilePath $diskListScanReportPath -data $data
-
-    if ($diskScanReport.Count -gt 0) {
-        $diskScanReport | ForEach-Object {
+if (Test-Path $diskToBeScanPath) {
+    # 5.Scan 
+    $diskToBeScan = (Get-Content $diskToBeScanPath | ConvertFrom-Csv)
+    foreach ($disk in $diskToBeScan) {
+        # time,ip,diskunc,isScaned,scanReport 存至 diskIsScaned
+        
+        # 掃毒smb路徑並存檔到C:\script\log\f-secure-scean_log\yyyymmdd\scan_log_127.0.0.1_c$.html
+        try {
+            # 連線smb(根據CredentialIndex取出特定Credential)
+            $credential = $credentials[$disk.CredentialIndex]
+            if (-Not (Test-Path $disk.diskunc)){
+                net use $($disk.diskunc) /user:$($credential.GetNetworkCredential().username) $($credential.GetNetworkCredential().password)
+            }
+            $reportFilePath = "$($outputFolderPath)\scan_log_$($disk.ip)_$($disk.diskunc.substring($disk.diskunc.Length -2)).html"
+            fsscan $($disk.diskunc) /report=$reportFilePath
             $data = [PSCustomObject]@{
                 time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
                 ip = $disk.ip
                 diskunc = $disk.diskunc
-                virusName = $_.type
-                virusPath = $_.path
+                isScaned =  1
+                scanReport = $reportFilePath
+                message = "掃毒完成"
             }
-            saveCsv -outputFilePath $virusReportPath -data $data
+            saveCsv -outputFilePath $diskIsScanedPath -data $data
+            net use $($disk.diskunc) /delete
+        }
+        catch {
+            $data = [PSCustomObject]@{
+                time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
+                ip = $disk.ip
+                diskunc = $disk.diskunc
+                isScaned =  0
+                scanReport = ""
+                message = "連接網路磁碟$($disk.diskunc)出錯，錯誤訊息: $($_.Exception.Message)"
+            }
+            saveCsv -outputFilePath $diskIsScanedPath -data $data
+        }
+    }
+
+    # 6.Report
+    $diskIsScaned = (Get-Content $diskIsScanedPath | ConvertFrom-Csv)
+    foreach ($disk in $diskIsScaned) {
+        ## 6.1.diskListScanReport
+        ### time,diskunc,virusCount 存至 diskListScanReportPath
+        ## 6.2.virusReport
+        ### time,virusName,virusPath 存至 virusReportPath
+        $diskScanReport = [Array](virusReportReader $(Get-Content -path $disk.scanReport -raw -Encoding UTF8))
+        
+        $data = [PSCustomObject]@{
+            time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
+            ip = $disk.ip
+            diskunc = $disk.diskunc
+            virusCount = $diskScanReport.Count
+        }
+        saveCsv -outputFilePath $diskListScanReportPath -data $data
+
+        if ($diskScanReport.Count -gt 0) {
+            $diskScanReport | ForEach-Object {
+                $data = [PSCustomObject]@{
+                    time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
+                    ip = $disk.ip
+                    diskunc = $disk.diskunc
+                    virusName = $_.type
+                    virusPath = $_.path
+                }
+                saveCsv -outputFilePath $virusReportPath -data $data
+            }
         }
     }
 }

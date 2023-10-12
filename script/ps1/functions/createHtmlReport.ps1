@@ -10,10 +10,14 @@
 	# 取出掃毒引擎版本號
 	## 取出任一個磁碟的掃毒報告
 	$outputFolderPath = (ls $pingTestPath).Directory.FullName
-	$fsecureReportfiles = (ls $outputFolderPath | Where-Object { $_.Extension -eq ".html"}).FullName
-	## 使用XPath取出掃毒引擎版本號
-	$xml = [xml]$(Get-Content -path $($fsecureReportfiles[0]) -raw -Encoding UTF8)  # 將 HTML 轉換為XML
-	$fsecureScanEnginData = $xml | Select-Xml "//ul[@class='list_engines']/li" | ForEach-Object {$_.Node.'#text'}
+	$fsecureReportfiles = ([Array](ls $outputFolderPath | Where-Object { $_.Extension -eq ".html"})).FullName
+	
+	$fsecureScanEnginData = $()
+	if ($fsecureReportfile.Count -gt 0) {
+		## 使用XPath取出掃毒引擎版本號
+		$xml = [xml]$(Get-Content -path $($fsecureReportfiles[0]) -raw -Encoding UTF8)  # 將 HTML 轉換為XML
+		$fsecureScanEnginData = [Array]($xml | Select-Xml "//ul[@class='list_engines']/li") | ForEach-Object {$_.Node.'#text'}
+	}
 	return "
 	<html xmlns='http://www.w3.org/1999/xhtml'>
 	* 掃描結果
@@ -28,27 +32,27 @@
 			<th>(中毒檔案)數</th>
 		</tr>
 		<tr>
-			<td>$((Get-Content $pingTestPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
-			<td>$((Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1}).Count)</td>
-			<td>$((Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0}).Count)</td>
-			<td>$((Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1}).Count)</td>
-			<td>$((Get-Content $diskToBeScanPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
-			<td>$((Get-Content $diskListScanReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
-			<td>$(if (Test-Path -path $virusReportPath) {(Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count} else {0})</td>
+			<td>$(([Array](Get-Content $pingTestPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count)</td>
+			<td>$(([Array](Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1})).Count)</td>
+			<td>$(([Array](Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0})).Count)</td>
+			<td>$(([Array](Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1})).Count)</td>
+			<td>$(if (Test-Path -path $diskToBeScanPath) {([Array](Get-Content $diskToBeScanPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count} else {0})</td>
+			<td>$(if (Test-Path -path $diskListScanReportPath) {([Array](Get-Content $diskListScanReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count} else {0})</td>
+			<td>$(if (Test-Path -path $virusReportPath) {([Array](Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count} else {0})</td>
 		</tr>
 	</table>
 
 	* 不可登入PC IP清單
-	<ul>$((Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 0}) | ForEach-Object {"`n  <li>$($_.ip)</li>"})
+	<ul>$([Array](Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 0}) | ForEach-Object {"`n  <li>$($_.ip)</li>"})
 	</ul>
 
 	* 防毒引擎資訊
-	<ul>$($fsecureScanEnginData | ForEach-Object {"`n  <li>$($_)</li>"})
+	<ul>$(if ($fsecureScanEnginData.Count -gt 0) {$fsecureScanEnginData | ForEach-Object {"`n  <li>$($_)</li>"}})
 	</ul>
 	
 	$(
 		if (Test-Path -path $virusReportPath) {
-			$virusReport = (Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)
+			$virusReport = [Array](Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)
 			"
 			* 中毒清單
 			<table border='1'>
@@ -81,10 +85,15 @@ function createHtmlLinuxReport(
 	# 取出掃毒引擎版本號
 	## 取出任一個磁碟的掃毒報告
 	$outputFolderPath = (ls $pingTestPath).Directory.FullName
-	$fsecureReportfiles = (ls $outputFolderPath | Where-Object { $_.Extension -eq ".html"}).FullName
-	## 使用XPath取出掃毒引擎版本號
-	$xml = [xml]$(Get-Content -path $($fsecureReportfiles[0]) -raw -Encoding UTF8)  # 將 HTML 轉換為XML
-	$fsecureScanEnginData = $xml | Select-Xml "//ul[@class='list_engines']/li" | ForEach-Object {$_.Node.'#text'}
+	$fsecureReportfiles = [Array](ls $outputFolderPath | Where-Object { $_.Extension -eq ".html"}).FullName
+
+	$fsecureScanEnginData = $()
+	if ($fsecureReportfile.Count -gt 0) {
+		## 使用XPath取出掃毒引擎版本號
+		$xml = [xml]$(Get-Content -path $($fsecureReportfiles[0]) -raw -Encoding UTF8)  # 將 HTML 轉換為XML
+		$fsecureScanEnginData = [Array]($xml | Select-Xml "//ul[@class='list_engines']/li") | ForEach-Object {$_.Node.'#text'}
+	}
+
 	return "
 	<html xmlns='http://www.w3.org/1999/xhtml'>
 	* 掃描結果
@@ -98,26 +107,26 @@ function createHtmlLinuxReport(
 			<th>(中毒檔案)數</th>
 		</tr>
 		<tr>
-			<td>$((Get-Content $pingTestPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
-			<td>$((Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1}).Count)</td>
-			<td>$((Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0}).Count)</td>
-			<td>$((Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1}).Count)</td>
-			<td>$((Get-Content $diskListScanReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count)</td>
-			<td>$(if (Test-Path -path $virusReportPath) {(Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv).Count} else {0})</td>
+			<td>$(([Array](Get-Content $pingTestPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count)</td>
+			<td>$(([Array](Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 1})).Count)</td>
+			<td>$(([Array](Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 0})).Count)</td>
+			<td>$(([Array](Get-Content $antiVirusCheckPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.hasAntiVirus -eq 1})).Count)</td>
+			<td>$(if (Test-Path -path $diskListScanReportPath) {([Array](Get-Content $diskListScanReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count} else {0})</td>
+			<td>$(if (Test-Path -path $virusReportPath) {([Array](Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)).Count} else {0})</td>
 		</tr>
 	</table>
 
 	* 不可登入PC IP清單
-	<ul>$((Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 0}) | ForEach-Object {"`n  <li>$($_.ip)</li>"})
+	<ul>$([Array](Get-Content $loginTestPath -raw -Encoding UTF8 | ConvertFrom-Csv | Where-Object {$_.loginResult -eq 0}) | ForEach-Object {"`n  <li>$($_.ip)</li>"})
 	</ul>
 
 	* 防毒引擎資訊
-	<ul>$($fsecureScanEnginData | ForEach-Object {"`n  <li>$($_)</li>"})
+	<ul>$(if ($fsecureScanEnginData.Count -gt 0) {$fsecureScanEnginData | ForEach-Object {"`n  <li>$($_)</li>"}})
 	</ul>
 	
 	$(
 		if (Test-Path -path $virusReportPath) {
-			$virusReport = (Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)
+			$virusReport = [Array](Get-Content $virusReportPath -raw -Encoding UTF8 | ConvertFrom-Csv)
 			"
 			* 中毒清單
 			<table border='1'>

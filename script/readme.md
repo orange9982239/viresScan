@@ -35,20 +35,22 @@
 $account = "ScanAccount"
 
 # 取得本機硬碟
-$physicalDisks = Get-Disk | Where-Object {
-    $_.BusType -notin "iSCSI"
-} | ForEach-Object {
-    $_ | Get-Partition | Where-Object {
-        -not $_.DriveLetter -eq ""
-    }
-} | Select-Object DriveLetter,Size,@{Name = 'Path'; Expression = {$_.Name}}
+$physicalDisks = [Array](
+  Get-Disk | Where-Object {
+      $_.BusType -notin "iSCSI"
+  } | ForEach-Object {
+      $_ | Get-Partition | Where-Object {
+          -not $_.DriveLetter -eq ""
+      }
+  } | Select-Object DriveLetter,Size,@{Name = 'Path'; Expression = {$_.Name}}
+)
 
 # 開分享目錄及賦予讀取權限
 $physicalDisks | ForEach-Object {
-    if ("$($_.DriveLetter):\" -in (Get-SmbShare | Where-Object {$_.Name -notlike "*$"}).Path) {
+    if ("$($_.DriveLetter):\" -in [Array](Get-SmbShare | Where-Object {$_.Name -notlike "*$"}).Path) {
         # 路徑已分享
         # 確認分享路徑有Full讀寫權限，無則補開
-        $fullAccessAccounts = (Get-SmbShareAccess -Name C$ | Where-Object {$_.AccessRight -eq "Full"}).AccountName
+        $fullAccessAccounts = [Array](Get-SmbShareAccess -Name C$ | Where-Object {$_.AccessRight -eq "Full"}).AccountName
         if($fullAccessAccounts -notcontains $account){
             Add-SmbShareAccess -Name $_.DriveLetter -AccountName $using:account -AccessRight Full -Force            # 分享目錄加入權限
         }
@@ -119,3 +121,5 @@ $physicalDisks | ForEach-Object {
   * 掃毒帳號改完整讀寫權限(Read=>Full)。
 * 20231005 加入LINUX初始版本
 * 20231009 Linux版本加入判斷OS中尚未安裝防毒軟體。
+* 20231012 清晰定義Array，防止計算數量時的錯誤。
+* 20231012 處理需掃描機器硬碟為0情況的報表。
