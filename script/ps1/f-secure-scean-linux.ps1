@@ -118,7 +118,7 @@ foreach ($PC in $LoginSuccessPC) {
             echo 0
         fi
     ")
-    if ($sshCommand.Result -eq 1) {
+    if ($sshCommand.Result.ToString().Trim() -eq 1) {
         $data = [PSCustomObject]@{
             time = $(Get-Date -Format "yyyy/MM/dd HH:mm:ss")
             ip = $PC.ip
