@@ -47,16 +47,18 @@ $physicalDisks = [Array](
 
 # 開分享目錄及賦予讀取權限
 $physicalDisks | ForEach-Object {
-    if ("$($_.DriveLetter):\" -in [Array](Get-SmbShare | Where-Object {$_.Name -notlike "*$"}).Path) {
+    if ("$($_.DriveLetter):\" -in [Array](Get-SmbShare | Where-Object {$_.Name -notlike "*$*"}).Path) {
         # 路徑已分享
-        # 確認分享路徑有Full讀寫權限，無則補開
-        $fullAccessAccounts = [Array](Get-SmbShareAccess -Name C$ | Where-Object {$_.AccessRight -eq "Full"}).AccountName
-        if($fullAccessAccounts -notcontains $account){
-            Add-SmbShareAccess -Name $_.DriveLetter -AccountName $using:account -AccessRight Full -Force            # 分享目錄加入權限
+        # 確認分享路徑有Full讀寫權限
+        $fullAccessAccount = [Array](Get-SmbShareAccess -Name "$($_.DriveLetter)" | Where-Object {$_.AccessRight -eq "Full"}).AccountName
+        if($fullAccessAccount -notcontains $account){
+            # 無權限則補開
+            Grant-SmbShareAccess -Name $_.DriveLetter -AccountName $account -AccessRight Full -Force
         }
     }else{
         # 路徑未分享
-        New-SmbShare -Name $_.DriveLetter -Path "$($_.DriveLetter):\" -FullAccess $using:account -Force             # 開分享目錄
+        # 開分享
+        New-SmbShare -Name $_.DriveLetter -Path "$($_.DriveLetter):\" -FullAccess $account
     }
 }
 ```
