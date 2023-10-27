@@ -141,7 +141,7 @@ foreach ($PC in $LoginSuccessPC) {
 
 # 5.Scan 
 $PCToBeScan = [Array](Get-Content $antiVirusCheckPath | ConvertFrom-Csv) | Where-Object {$_.hasAntiVirus -eq 0}
-if ($PCToBeScan -gt 0) {
+if ($PCToBeScan.Count -gt 0) {
     foreach ($PC in $PCToBeScan) {
         # time,ip,diskunc,isScaned,scanReport 存至 diskIsScaned
         
