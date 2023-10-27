@@ -138,9 +138,9 @@ foreach ($PC in $pcWithoutAntiVirus) {
                 $physicalDisks | ForEach-Object {
                     if ("$($_.DriveLetter):\" -in [Array](Get-SmbShare | Where-Object {$_.Name -notlike "*$*"}).Path) {
                         # 路徑已分享
-                        # 確認分享路徑有Read讀寫權限
-                        $AccessAccount = [Array](Get-SmbShareAccess -Name "$($_.DriveLetter)" | Where-Object {$_.AccessRight -eq "Read"}).AccountName
-                        if($AccessAccount -notcontains $account){
+                        # 確認分享路徑對指定帳號存在Full/Change/Read權限
+                        $accountHasAnyAccess = [Array](Get-SmbShareAccess -Name "$($_.DriveLetter)" | Where-Object {$_.AccountName -like "*$($account)*"}).AccountName
+                        if($accountHasAnyAccess.Count -eq 0){
                             # 無權限則補開
                             Grant-SmbShareAccess -Name $_.DriveLetter -AccountName $account -AccessRight Read -Force
                         }

@@ -19,49 +19,52 @@
 > ![flow](/script/ps1/flow.drawio.svg)
 # no-ipc-share版本
 1. create scan account
-   ScanAccount/!QAZ2wsx
+    ScanAccount/!QAZ2wsx
 2. 分享smb給特定帳號(ScanAccount)並唯獨
-  ```ps1
-  New-SmbShare -Name "D" -Path "D:\" -ReadAccess "ScanAccount"
-  Set-SmbShare -Name "D" -FolderEnumerationMode AccessBased -CachingMode None -Force
-  ```
+    ```ps1
+    # 開分享
+    New-SmbShare -Name "D" -Path "D:\" -ReadAccess $account
+
+    # 補開權限
+    Grant-SmbShareAccess -Name "D" -AccountName $account -AccessRight Read -Force  
+    ```
 1. 從其他台聯接測試
-  ```ps1
-  net use * /delete
-  net use \\1.1.1.1\d /user:ScanAccount !QAZ2wsx
-  ```
+    ```ps1
+    net use * /delete
+    net use \\1.1.1.1\d /user:ScanAccount !QAZ2wsx
+    ```
 * 自動設定讀取分享
-```ps1
-$account = "ScanAccount"
+    ```ps1
+    $account = "ScanAccount"
 
-# 取得本機硬碟
-$physicalDisks = [Array](
-  Get-Disk | Where-Object {
-      $_.BusType -notin "iSCSI"
-  } | ForEach-Object {
-      $_ | Get-Partition | Where-Object {
-          -not $_.DriveLetter -eq ""
-      }
-  } | Select-Object DriveLetter,Size,@{Name = 'Path'; Expression = {$_.Name}}
-)
+    # 取得本機硬碟
+    $physicalDisks = [Array](
+      Get-Disk | Where-Object {
+          $_.BusType -notin "iSCSI"
+      } | ForEach-Object {
+          $_ | Get-Partition | Where-Object {
+              -not $_.DriveLetter -eq ""
+          }
+      } | Select-Object DriveLetter,Size,@{Name = 'Path'; Expression = {$_.Name}}
+    )
 
-# 開分享目錄及賦予讀取權限
-$physicalDisks | ForEach-Object {
-    if ("$($_.DriveLetter):\" -in [Array](Get-SmbShare | Where-Object {$_.Name -notlike "*$*"}).Path) {
-        # 路徑已分享
-        # 確認分享路徑有Read讀寫權限
-        $AccessAccount = [Array](Get-SmbShareAccess -Name "$($_.DriveLetter)" | Where-Object {$_.AccessRight -eq "Read"}).AccountName
-        if($AccessAccount -notcontains $account){
-            # 無權限則補開
-            Grant-SmbShareAccess -Name $_.DriveLetter -AccountName $account -AccessRight Read -Force
+    # 開分享目錄及賦予讀取權限
+    $physicalDisks | ForEach-Object {
+        if ("$($_.DriveLetter):\" -in [Array](Get-SmbShare | Where-Object {$_.Name -notlike "*$*"}).Path) {
+            # 路徑已分享
+            # 確認分享路徑對指定帳號存在Full/Change/Read權限
+            $accountHasAnyAccess = [Array](Get-SmbShareAccess -Name "$($_.DriveLetter)" | Where-Object {$_.AccountName -like "*$($account)*"}).AccountName
+            if($accountHasAnyAccess.Count -eq 0){
+                # 無權限則補開
+                Grant-SmbShareAccess -Name $_.DriveLetter -AccountName $account -AccessRight Read -Force
+            }
+        }else{
+            # 路徑未分享
+            # 開分享
+            New-SmbShare -Name $_.DriveLetter -Path "$($_.DriveLetter):\" -ReadAccess $account
         }
-    }else{
-        # 路徑未分享
-        # 開分享
-        New-SmbShare -Name $_.DriveLetter -Path "$($_.DriveLetter):\" -ReadAccess $account
     }
-}
-```
+    ```
 # linux版本
 1. 準備
   * 安裝sshfs-win
